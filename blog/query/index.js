@@ -6,10 +6,9 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.json());
 app.use(cors());
 
-const posts = []; // In-memory store for posts and their comments
+const posts = []; // In-memory storage for posts with comments
 
 app.get("/posts", (req, res) => {
-	// Return aggregated data from posts and comments services
 	res.send(posts);
 });
 
@@ -23,15 +22,26 @@ app.post("/events", (req, res) => {
 	}
 
 	if (type === "CommentCreated") {
-		const { postId, id, content } = data;
+		const { postId, id, content, status } = data;
 
 		const post = posts.find((p) => p.id === postId);
 		if (post) {
-			post.comments.push({ id, content });
+			post.comments.push({ id, content, status });
 		}
 	}
 
-	console.log("Updated Posts:", posts);
+	if (type === "CommentUpdated") {
+		const { postId, id, content, status } = data;
+
+		const post = posts.find((p) => p.id === postId);
+		if (post) {
+			const comment = post.comments.find((c) => c.id === id);
+			if (comment) {
+				comment.status = status;
+				comment.content = content;
+			}
+		}
+	}
 
 	res.send(posts);
 });

@@ -9,23 +9,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // Mock data for comments
-const comments = [
-	{
-		id: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab4",
-		postId: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab1",
-		content: "This is the first comment.",
-	},
-	{
-		id: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab5",
-		postId: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab2",
-		content: "This is the second comment.",
-	},
-	{
-		id: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab6",
-		postId: "86e920e7-667e-4f8e-9b9d-c1d674ee8ab3",
-		content: "This is the third comment.",
-	},
-];
+const comments = [];
 
 app.get("/posts/:postId/comments", (req, res) => {
 	const postId = req.params.postId;
@@ -38,8 +22,9 @@ app.post("/posts/:postId/comments", async (req, res) => {
 		id: uniq(),
 		postId: req.params.postId,
 		content: req.body.content,
+		status: "pending",
 	};
-
+	comments.push(newComment);
 	try {
 		await axios.post("http://localhost:3005/events", {
 			type: "CommentCreated",
@@ -56,8 +41,34 @@ app.post("/posts/:postId/comments", async (req, res) => {
 	res.status(201).json(newComment);
 });
 
-app.post("/events", (req, res) => {
-	console.log("Received Event", req.body.type);
+app.post("/events", async (req, res) => {
+	const { type, data } = req.body;
+
+	if (type === "CommentModerated") {
+		const { id, postId, status, content } = data;
+		const comment = comments.find((c) => c.id === id);
+
+		if (comment) {
+			comment.status = status;
+
+			try {
+				await axios.post("http://localhost:3005/events", {
+					type: "CommentUpdated",
+					data: {
+						id,
+						postId,
+						status,
+						content,
+					},
+				});
+			} catch (error) {
+				console.error(
+					"Failed to send CommentUpdated event to event-bus:",
+					error && error.message ? error.message : error
+				);
+			}
+		}
+	}
 
 	res.send({});
 });
